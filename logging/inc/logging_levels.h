@@ -21,13 +21,14 @@
  *
  * Log levels in order of severity (lowest to highest):
  * - #LOG_NONE - Completely disable all logging
+ * - #LOG_CRITICAL - Hard faults and unrecoverable system failures
  * - #LOG_ERROR - Critical failures requiring immediate attention  
  * - #LOG_WARN - Abnormal conditions that don't stop execution
  * - #LOG_INFO - Normal operational status messages
  * - #LOG_DEBUG - Detailed diagnostic information for development
  *
  * @note Higher log levels generate more output and impact performance.
- *       For production embedded systems, use LOG_WARN or LOG_ERROR only.
+ *       For production embedded systems, use LOG_CRITICAL or LOG_ERROR only.
  */
 
 /**
@@ -39,17 +40,32 @@
 #define LOG_NONE     0
 
 /**
- * @brief Critical system failures and unrecoverable errors.
+ * @brief Hard faults and unrecoverable system failures (highest severity).
+ * 
+ * Use for conditions that require immediate system intervention:
+ * - Hard fault exceptions
+ * - Stack overflow/underflow
+ * - Watchdog resets
+ * - Memory access violations
+ * - Unrecoverable hardware failures
+ * 
+ * @note These messages should always be logged in production. Can be logged
+ *       even with interrupts disabled via Logging_Init_Critical().
+ */
+#define LOG_CRITICAL 1
+
+/**
+ * @brief Critical system failures requiring immediate attention.
  * 
  * Use for conditions that prevent normal system operation:
  * - Hardware initialization failures
  * - Critical resource allocation failures  
  * - Security violations
- * - System crashes or resets
+ * - System reboots
  * 
  * @note These should be rare in production and require immediate attention.
  */
-#define LOG_ERROR    1
+#define LOG_ERROR    2
 
 /**
  * @brief Warning conditions that don't prevent operation.
@@ -62,7 +78,7 @@
  * 
  * @note System continues operation but monitoring may be needed.
  */
-#define LOG_WARN     2
+#define LOG_WARN     3
 
 /**
  * @brief Normal operational status messages.
@@ -75,7 +91,7 @@
  * 
  * @note Provides visibility into normal system behavior.
  */
-#define LOG_INFO     3
+#define LOG_INFO     4
 
 /**
  * @brief Detailed diagnostic information for development.
@@ -88,6 +104,6 @@
  * 
  * @warning Should be disabled in production builds due to performance impact.
  */
-#define LOG_DEBUG    4
+#define LOG_DEBUG    5
 
 #endif /* ifndef LOGGING_LEVELS_H */

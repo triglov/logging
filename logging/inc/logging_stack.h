@@ -52,48 +52,67 @@
     LOG_WITH_FUNC(level, message, ##__VA_ARGS__)
 #endif
 
+#define CRITICAL_LOG(level, message, ...) \
+    SdkLog_Critical(level LOG_PREFIX LOG_SUFFIX message "\r\n", ##__VA_ARGS__)
+
 extern int (*log_function)(const char *message, ...);
+extern int (*critical_log_function)(const char *message, ...);
 
 #if !defined(LOGGING_DISABLED_GLOBALLY)
 #define SdkLog(message, ...) log_function(message, ##__VA_ARGS__)
+#define SdkLog_Critical(message, ...) critical_log_function(message, ##__VA_ARGS__)
 #else
 #define SdkLog(message, ...)
+#define SdkLog_Critical(message, ...)
 #endif
 
 /* Log level validation */
-#if !defined(LOGGING_TOP_LOG_LEVEL) ||       \
-    ((LOGGING_TOP_LOG_LEVEL != LOG_NONE) &&  \
-     (LOGGING_TOP_LOG_LEVEL != LOG_ERROR) && \
-     (LOGGING_TOP_LOG_LEVEL != LOG_WARN) &&  \
-     (LOGGING_TOP_LOG_LEVEL != LOG_INFO) &&  \
+#if !defined(LOGGING_TOP_LOG_LEVEL) ||          \
+    ((LOGGING_TOP_LOG_LEVEL != LOG_NONE) &&     \
+     (LOGGING_TOP_LOG_LEVEL != LOG_CRITICAL) && \
+     (LOGGING_TOP_LOG_LEVEL != LOG_ERROR) &&    \
+     (LOGGING_TOP_LOG_LEVEL != LOG_WARN) &&     \
+     (LOGGING_TOP_LOG_LEVEL != LOG_INFO) &&     \
      (LOGGING_TOP_LOG_LEVEL != LOG_DEBUG))
-#error "Please define LOGGING_TOP_LOG_LEVEL as either LOG_NONE, LOG_ERROR, LOG_WARN, LOG_INFO, or LOG_DEBUG."
+#error "Please define LOGGING_TOP_LOG_LEVEL as either LOG_NONE, LOG_CRITICAL, LOG_ERROR, LOG_WARN, LOG_INFO, or LOG_DEBUG."
 #else
 #if LOGGING_TOP_LOG_LEVEL == LOG_DEBUG
+#define LogCritical(message, ...) CRITICAL_LOG("[CRITICAL] ", message, ##__VA_ARGS__)
 #define LogError(message, ...) LOG_WITH_FUNC("[ERROR] ", message, ##__VA_ARGS__)
 #define LogWarn(message, ...) LOG_WITH_FUNC("[WARN]  ", message, ##__VA_ARGS__)
 #define LogInfo(message, ...) LOG_WITH_FUNC("[INFO]  ", message, ##__VA_ARGS__)
 #define LogDebug(message, ...) LOG_WITH_FUNC("[DEBUG] ", message, ##__VA_ARGS__)
 
 #elif LOGGING_TOP_LOG_LEVEL == LOG_INFO
+#define LogCritical(message, ...) CRITICAL_LOG("[CRITICAL] ", message, ##__VA_ARGS__)
 #define LogError(message, ...) LOG_WITH_FUNC("[ERROR] ", message, ##__VA_ARGS__)
 #define LogWarn(message, ...) LOG_WITH_FUNC("[WARN]  ", message, ##__VA_ARGS__)
 #define LogInfo(message, ...) LOG_WITH_FUNC("[INFO]  ", message, ##__VA_ARGS__)
 #define LogDebug(message, ...)
 
 #elif LOGGING_TOP_LOG_LEVEL == LOG_WARN
+#define LogCritical(message, ...) CRITICAL_LOG("[CRITICAL] ", message, ##__VA_ARGS__)
 #define LogError(message, ...) LOG_WITH_FUNC("[ERROR] ", message, ##__VA_ARGS__)
 #define LogWarn(message, ...) LOG_WITH_FUNC("[WARN]  ", message, ##__VA_ARGS__)
 #define LogInfo(message, ...)
 #define LogDebug(message, ...)
 
 #elif LOGGING_TOP_LOG_LEVEL == LOG_ERROR
+#define LogCritical(message, ...) CRITICAL_LOG("[CRITICAL] ", message, ##__VA_ARGS__)
 #define LogError(message, ...) LOG_WITH_FUNC("[ERROR] ", message, ##__VA_ARGS__)
 #define LogWarn(message, ...)
 #define LogInfo(message, ...)
 #define LogDebug(message, ...)
 
+#elif LOGGING_TOP_LOG_LEVEL == LOG_CRITICAL
+#define LogCritical(message, ...) CRITICAL_LOG("[CRITICAL] ", message, ##__VA_ARGS__)
+#define LogError(message, ...)
+#define LogWarn(message, ...)
+#define LogInfo(message, ...)
+#define LogDebug(message, ...)
+
 #else
+#define LogCritical(message, ...)
 #define LogError(message, ...)
 #define LogWarn(message, ...)
 #define LogInfo(message, ...)

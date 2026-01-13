@@ -2,11 +2,11 @@
 
 ## Overview
 
-This document describes the high-performance logging system for embedded applications, based on [FreeRTOS logging framework](https://www.freertos.org/logging.html). The system provides four levels of logging with **pure compile-time string concatenation** for maximum embedded performance, configurable output formats, and customizable log transport mechanisms.
+This document describes the high-performance logging system for embedded applications, based on [FreeRTOS logging framework](https://www.freertos.org/logging.html). The system provides five hierarchical logging levels with **pure compile-time string concatenation** for maximum embedded performance, configurable output formats, and customizable log transport mechanisms.
 
 ## Key Features
 
-- **🚀 Zero Runtime Overhead**: Pure compile-time string concatenation 
+- **🚀 Zero Runtime Overhead**: Pure compile-time string concatenation
 - **📦 Minimal Code Size**: ~50-70% smaller than format-string approaches
 - **⚡ Embedded-Optimized**: Ideal for resource-constrained systems
 - **🎛️ Configurable**: Multiple output format options
@@ -14,15 +14,16 @@ This document describes the high-performance logging system for embedded applica
 
 ## Log Levels
 
-The logging system supports four hierarchical log levels:
+The logging system supports five hierarchical log levels:
 
 | Level | Value | Description |
-|-------|-------|-------------|
+| ------- | ------- | ------------- |
 | `LOG_NONE` | 0 | No log messages |
-| `LOG_ERROR` | 1 | Erroneous application state or event |
-| `LOG_WARN` | 2 | Abnormal event that may be indicative of an error |
-| `LOG_INFO` | 3 | Helpful, informational message about normal execution |
-| `LOG_DEBUG` | 4 | Detailed and excessive debug information |
+| `LOG_CRITICAL` | 1 | Hard faults, watchdog resets, unrecoverable system failures |
+| `LOG_ERROR` | 2 | Critical failures requiring immediate attention |
+| `LOG_WARN` | 3 | Abnormal event that may be indicative of an error |
+| `LOG_INFO` | 4 | Helpful, informational message about normal execution |
+| `LOG_DEBUG` | 5 | Detailed and excessive debug information |
 
 ## Configuration
 
@@ -53,30 +54,37 @@ target_compile_definitions(my_app
 ### Configuration Options
 
 #### File Path Display (Compile-Time Safe Options Only)
+
 Choose one of these options:
+
 - **`LOGGING_PRINT_FILE_PATH`** - Shows full file path using `__FILE__` macro
 - **No option** - No file information displayed (**most embedded-friendly**)
 
 #### Function Name Display
+
 - **`LOGGING_PRINT_FUNCTION_NAME`** - Adds function names to log messages (requires C99+ `__func__` support)
   - **Performance optimized**: Function name passed as separate argument (no runtime string concatenation)
   - **Zero overhead when disabled**: Pure compile-time string concatenation
 
 #### Log Level Control
-- **`LOGGING_TOP_LOG_LEVEL=LOG_DEBUG`** - All messages (ERROR, WARN, INFO, DEBUG)
-- **`LOGGING_TOP_LOG_LEVEL=LOG_INFO`** - INFO and above (ERROR, WARN, INFO)
-- **`LOGGING_TOP_LOG_LEVEL=LOG_WARN`** - WARN and above (ERROR, WARN)
-- **`LOGGING_TOP_LOG_LEVEL=LOG_ERROR`** - ERROR only
+
+- **`LOGGING_TOP_LOG_LEVEL=LOG_DEBUG`** - All messages (CRITICAL, ERROR, WARN, INFO, DEBUG)
+- **`LOGGING_TOP_LOG_LEVEL=LOG_INFO`** - INFO and above (CRITICAL, ERROR, WARN, INFO)
+- **`LOGGING_TOP_LOG_LEVEL=LOG_WARN`** - WARN and above (CRITICAL, ERROR, WARN)
+- **`LOGGING_TOP_LOG_LEVEL=LOG_ERROR`** - ERROR and above (CRITICAL, ERROR)
+- **`LOGGING_TOP_LOG_LEVEL=LOG_CRITICAL`** - CRITICAL only (hard faults, system crashes)
 - **`LOGGING_TOP_LOG_LEVEL=LOG_NONE`** - No logging
 
 #### Module/Library Name
+
 - **`LOGGING_LOG_NAME="[MODULE_NAME]"`** - Custom identifier for log messages
 
 ## Performance Characteristics
 
 ### Compile-Time String Concatenation vs Argument Passing
 
-#### Without Function Names (Pure Compile-Time):
+#### Without Function Names (Pure Compile-Time)
+
 ```c
 // Your code:
 LogInfo("Temperature: %d°C", temp);
@@ -86,7 +94,8 @@ log_function("[INFO] [SENSOR] :42 - Temperature: %d°C\r\n", temp);
 // Stack usage: ~12 bytes (1 format string + 1 user arg)
 ```
 
-#### With Function Names (Optimized Argument Passing):
+#### With Function Names (Optimized Argument Passing)
+
 ```c
 // Your code:
 LogInfo("Temperature: %d°C", temp);
@@ -101,6 +110,7 @@ log_function("[INFO] [SENSOR] (%s):42 - Temperature: %d°C\r\n", __func__, temp)
 ```
 
 ### Embedded Performance Benefits
+
 - **Code Size**: ~50-70% smaller than format-string approaches
 - **RAM Usage**: Minimal stack usage (1-2 args vs 4+ args in traditional loggers)
 - **Execution Speed**: 5-10x faster (direct string output, minimal argument passing)
@@ -111,6 +121,7 @@ log_function("[INFO] [SENSOR] (%s):42 - Temperature: %d°C\r\n", __func__, temp)
 ## API Usage
 
 ### Initialization
+
 ```c
 #include "logging.h"
 
@@ -123,9 +134,21 @@ static int custom_log_function(const char *message, ...)
     va_end(args);
     return 0;
 }
+// Define critical logging function (for hard faults, interrupts disabled)
+static int critical_log_function(const char *message, ...)
+{
+    va_list args;
+    va_start(args, message);
+    // Output using interrupt-safe method (e.g., polling UART)
+    uart_send_polling(message, args);
+    va_end(args);
+    return 0;
+}
 
 int main(void) {
     // Initialize the logging system
+    Logging_Init(custom_log_function);
+    Logging_Init_Critical(critical_log_function);  // For hard faults
     Logging_Init(custom_log_function);
     
     // Now you can use logging macros
@@ -136,23 +159,30 @@ int main(void) {
 
 ## Example Output Formats
 
-The output format depends on the configuration macros. Here are examples for different configurations:
+Critical(message, ...)`** - Critical level logging (hard faults, system crashes)
 
-### Configuration 1: With Library Name, No File Path
-```cpp
-#define LOGGING_LOG_NAME "MyModule"
-#define LOGGING_TOP_LOG_LEVEL LOG_DEBUG
-// LOGGING_PRINT_FILE_PATH not defined
-// LOGGING_PRINT_FUNCTION_NAME not defined
-```
-
-### Logging Macros
 - **`LogError(message, ...)`** - Error level logging
 - **`LogWarn(message, ...)`** - Warning level logging  
 - **`LogInfo(message, ...)`** - Information level logging
 - **`LogDebug(message, ...)`** - Debug level logging
 
 ### Example Usage
+
+```c
+LogCritical("Hard fault at address 0x%08X", fault_address);ine LOGGING_TOP_LOG_LEVEL LOG_DEBUG
+// LOGGING_PRINT_FILE_PATH not defined
+// LOGGING_PRINT_FUNCTION_NAME not defined
+```
+
+### Logging Macros
+
+- **`LogError(message, ...)`** - Error level logging
+- **`LogWarn(message, ...)`** - Warning level logging  
+- **`LogInfo(message, ...)`** - Information level logging
+- **`LogDebug(message, ...)`** - Debug level logging
+
+### Example Usage
+
 ```c
 LogError("Failed to initialize component %d", componentId);
 LogWarn("Buffer usage at %d%% capacity", usage);
@@ -165,6 +195,7 @@ LogDebug("Processing packet: size=%d, type=0x%02X", size, type);
 The output format depends on your configuration. Here are examples for different setups:
 
 ### Configuration 1: Full File Path + Function Names (Full Debug Mode)
+
 ```cmake
 add_compile_definitions(
     LOGGING_PRINT_FILE_PATH
@@ -174,8 +205,10 @@ add_compile_definitions(
 target_compile_definitions(my_app PRIVATE LOGGING_LOG_NAME="[APP]")
 ```
 
-**Output:**
-```
+*CRITICAL] [APP] (/home/user/project/src/main.c) (main):41 - Hard fault detected
+[*Output:**
+
+``` 
 [ERROR] [APP] (/home/user/project/src/main.c) (main):42 - Failed to initialize component 1
 [WARN]  [APP] (/home/user/project/src/main.c) (main):43 - Buffer usage at 85% capacity
 [INFO]  [APP] (/home/user/project/src/main.c) (main):44 - System initialized successfully
@@ -183,6 +216,7 @@ target_compile_definitions(my_app PRIVATE LOGGING_LOG_NAME="[APP]")
 ```
 
 ### Configuration 2: Function Names Only (Optimized Debug Mode)
+
 ```cmake
 add_compile_definitions(
     LOGGING_PRINT_FUNCTION_NAME     # Function names with optimized argument passing
@@ -192,7 +226,10 @@ add_compile_definitions(
 target_compile_definitions(my_app PRIVATE LOGGING_LOG_NAME="[APP]")
 ```
 
+CRITICAL] [APP] (HardFault_Handler):41 - Hard fault detected
+[
 **Output:**
+
 ```
 [ERROR] [APP] (main):42 - Failed to initialize component 1
 [WARN]  [APP] (main):43 - Buffer usage at 85% capacity
@@ -203,6 +240,7 @@ target_compile_definitions(my_app PRIVATE LOGGING_LOG_NAME="[APP]")
 **Performance Note**: Function names are passed as separate arguments (not concatenated), maintaining excellent performance while providing debugging context.
 
 ### Configuration 3: Minimal Embedded-Friendly (Recommended for Production)
+
 ```cmake
 add_compile_definitions(
     LOGGING_TOP_LOG_LEVEL=LOG_INFO  # Skip debug messages
@@ -211,7 +249,9 @@ add_compile_definitions(
 target_compile_definitions(my_app PRIVATE LOGGING_LOG_NAME="[APP]")
 ```
 
-**Output:**
+*CRITICAL] [APP] :41 - Hard fault detected
+[*Output:**
+
 ```
 [ERROR] [APP] :42 - Failed to initialize component 1
 [WARN]  [APP] :43 - Buffer usage at 85% capacity
@@ -219,6 +259,7 @@ target_compile_definitions(my_app PRIVATE LOGGING_LOG_NAME="[APP]")
 ```
 
 ### Configuration 3: Development Mode with Function Names
+
 ```cmake
 add_compile_definitions(
     LOGGING_PRINT_FUNCTION_NAME  # Add function context
@@ -228,6 +269,7 @@ target_compile_definitions(my_app PRIVATE LOGGING_LOG_NAME="[APP]")
 ```
 
 ### Configuration 4: Different Modules
+
 ```cmake
 # Global settings
 add_compile_definitions(
@@ -242,16 +284,18 @@ target_compile_definitions(main_app PRIVATE LOGGING_LOG_NAME="[APP]")
 ```
 
 **Output from different modules:**
-```
+`CRITICAL] [APP] (HardFault_Handler):66 - Hard fault exception
+[``
 [INFO]  [AUDIO] (init_audio):123 - Audio system initialized
 [DEBUG] [NET] (send_packet):45 - Sending packet of size 256
 [ERROR] [APP] (main):67 - Critical system failure
+
 ```
 
 ## Embedded System Recommendations
 
 ### Ultra-Low Resource Configuration (Microcontrollers)
-For systems with severe memory constraints:
+For systems with severe memoryCRITICAL  # Only critical system failure
 ```cmake
 add_compile_definitions(
     LOGGING_TOP_LOG_LEVEL=LOG_ERROR  # Only critical errors
@@ -261,7 +305,9 @@ add_compile_definitions(
 ```
 
 ### Development/Debug Configuration
+
 For development and testing:
+
 ```cmake
 add_compile_definitions(
     LOGGING_PRINT_FILE_PATH
@@ -271,7 +317,9 @@ add_compile_definitions(
 ```
 
 ### Production Embedded Configuration
+
 Balanced approach for production embedded systems:
+
 ```cmake
 add_compile_definitions(
     LOGGING_PRINT_FUNCTION_NAME  # Helpful for field debugging
@@ -282,6 +330,7 @@ add_compile_definitions(
 ## Function Name Performance Optimization
 
 ### Zero-Overhead Mode (LOGGING_PRINT_FUNCTION_NAME undefined)
+
 ```c
 LogInfo("Processing data");
 // Expands to: log_function("[INFO] [MODULE] :42 - Processing data\r\n");
@@ -290,6 +339,7 @@ LogInfo("Processing data");
 ```
 
 ### Optimized Function Name Mode (LOGGING_PRINT_FUNCTION_NAME defined)
+
 ```c
 LogInfo("Processing data");
 // Expands to: log_function("[INFO] [MODULE] (%s):42 - Processing data\r\n", __func__);
@@ -298,6 +348,7 @@ LogInfo("Processing data");
 ```
 
 ### Performance Comparison
+
 | Mode | Stack Usage | Execution Speed | Use Case |
 |------|------------|----------------|----------|
 | **Zero-overhead** | ~8 bytes | Fastest | Production embedded |
@@ -306,38 +357,66 @@ LogInfo("Processing data");
 
 **Key Advantage**: Function names are passed as separate arguments, not concatenated at runtime. This maintains excellent performance while providing debugging context when needed.
 
-## Log Level Behavior
+## Log Level Behavior5)
 
-### LOG_DEBUG Level (Value: 4)
 All messages are printed:
+
+- ✅ LogCritical - Hard faults and unrecoverable failures
 - ✅ LogError - Critical failures
 - ✅ LogWarn - Warning conditions  
 - ✅ LogInfo - General information
 - ✅ LogDebug - Detailed debug information
 
-### LOG_INFO Level (Value: 3)
+### LOG_INFO Level (Value: 4)
+
 Only INFO and above are printed:
+
+- ✅ LogCritical - Hard faults and unrecoverable failures
 - ✅ LogError - Critical failures
 - ✅ LogWarn - Warning conditions
 - ✅ LogInfo - General information
 - ❌ LogDebug - (macro becomes empty)
 
-### LOG_WARN Level (Value: 2)
+### LOG_WARN Level (Value: 3)
+
 Only WARN and above are printed:
+
+- ✅ LogCritical - Hard faults and unrecoverable failures
 - ✅ LogError - Critical failures
 - ✅ LogWarn - Warning conditions
 - ❌ LogInfo - (macro becomes empty)
 - ❌ LogDebug - (macro becomes empty)
 
-### LOG_ERROR Level (Value: 1)
-Only ERROR messages are printed:
+### LOG_ERROR Level (Value: 2)
+
+Only ERROR and above are printed:
+
+- ✅ LogCritical - Hard faults and unrecoverable failures
 - ✅ LogError - Critical failures
 - ❌ LogWarn - (macro becomes empty)
 - ❌ LogInfo - (macro becomes empty)  
 - ❌ LogDebug - (macro becomes empty)
 
+### LOG_CRITICAL Level (Value: 1)
+
+Only CRITICAL messages are printed:
+
+- ✅ LogCritical - Hard faults and unrecoverable failures
+- ❌ LogError - (macro becomes empty)
+- ❌ LogWarn - (macro becomes empty)
+- ❌ LogInfo - (macro becomes empty)
+- ❌ LogDebug - (macro becomes empty)
+
 ### LOG_NONE Level (Value: 0)
+
 No messages are printed:
+
+- ❌ LogCritical - (macro becomes empty)
+
+### LOG_NONE Level (Value: 0)
+
+No messages are printed:
+
 - ❌ LogError - (macro becomes empty)
 - ❌ LogWarn - (macro becomes empty)
 - ❌ LogInfo - (macro becomes empty)
@@ -367,6 +446,7 @@ my_project/
 ```
 
 ### Top-level CMakeLists.txt
+
 ```cmake
 cmake_minimum_required(VERSION 3.25.0)
 project(my_project)
@@ -385,23 +465,31 @@ add_subdirectory(audio_module)
 ```
 
 ### Module-specific CMakeLists.txt
-```cmake
+
+```cmakeCritical`**: For hard faults, watchdog resets, unrecoverable system failures (highest severity)
+
+- **`Log
+
 # src/CMakeLists.txt
+
 add_executable(main main.c)
 target_link_libraries(main PRIVATE logging)
 target_compile_definitions(main PRIVATE LOGGING_LOG_NAME="[MAIN]")
 
 # audio_module/CMakeLists.txt  
-add_library(audio audio.c)
+
+addCritical("Hard fault: CFSR=0x%08X, PC=0x%08X", SCB->CFSR, fault_pc);
+Log_library(audio audio.c)
 target_link_libraries(audio PUBLIC logging)
 target_compile_definitions(audio PUBLIC LOGGING_LOG_NAME="[AUDIO]")
+
 ```
 
 ## Best Practices
 
 ### 1. Choose Appropriate Log Levels
 - **`LogError`**: For critical failures that require immediate attention
-- **`LogWarn`**: For concerning conditions that don't stop execution  
+- **`LogWarn`**: For concerning conditioCRITICAL` or `LOG_ERROR` (for field diagnostics)xecution  
 - **`LogInfo`**: For general operational information
 - **`LogDebug`**: For detailed debugging information
 
@@ -412,16 +500,19 @@ LogInfo("Task started: priority=%d, stack=%d bytes", priority, stackSize);
 ```
 
 ### 3. Use Formatting Efficiently
+
 ```c
 LogDebug("Buffer state: used=%d/%d bytes (%.1f%%)", used, total, percentage);
 ```
 
 ### 4. Configure Log Levels for Different Builds
+
 - **Production embedded systems:** `LOG_ERROR` or `LOG_WARN`
 - **Development/testing:** `LOG_INFO` or `LOG_DEBUG`
 - **Ultra-minimal systems:** `LOG_NONE` (zero overhead)
 
 ### 5. Use Meaningful Module Names
+
 ```cmake
 target_compile_definitions(network PRIVATE LOGGING_LOG_NAME="[NET]")
 target_compile_definitions(audio PRIVATE LOGGING_LOG_NAME="[AUDIO]")
@@ -429,6 +520,7 @@ target_compile_definitions(storage PRIVATE LOGGING_LOG_NAME="[STORAGE]")
 ```
 
 ### 6. Embedded-Specific Considerations
+
 - **Prefer minimal configurations** for production
 - **Use compile-time filtering** over runtime filtering
 - **Consider log output frequency** in real-time systems
@@ -506,27 +598,34 @@ int main() {
 ### Performance Considerations
 
 #### Compile-Time vs Runtime Performance
+
 This logging system uses **pure compile-time string concatenation**, providing:
+
 - **Zero runtime formatting overhead** (unlike printf-style loggers)
 - **Deterministic execution time** (critical for real-time systems)
 - **Minimal stack usage** (single string literal + user arguments)
 
 #### Embedded System Guidelines
+
 - **Higher log levels generate more output** and impact performance
 - **Use conditional compilation** for performance-critical code:
+
   ```c
   #if LOGGING_TOP_LOG_LEVEL >= LOG_DEBUG
   LogDebug("Expensive debug operation: result=%d", expensive_calculation());
   #endif
   ```
+
 - **Consider flash/ROM usage** with extensive logging
 - **Test real-time behavior** with logging enabled
 - **Use `LOGGING_DISABLED_GLOBALLY`** to completely disable all logging for ultra-minimal builds:
+
   ```cmake
   add_compile_definitions(LOGGING_DISABLED_GLOBALLY)
   ```
 
 #### Memory Usage Comparison
+
 ```c
 // This logging system - WITHOUT function names (zero overhead):
 LogInfo("Sensor %d: temp=%d°C", id, temp);
@@ -544,6 +643,7 @@ LogInfo("Sensor %d: temp=%d°C", id, temp);
 ```
 
 #### Function Name Performance
+
 - **Disabled** (`LOGGING_PRINT_FUNCTION_NAME` undefined): Pure compile-time concatenation, zero overhead
 - **Enabled** (`LOGGING_PRINT_FUNCTION_NAME` defined): Function name passed as single argument, minimal overhead
 - **No runtime string concatenation**: Unlike traditional loggers, function names are never concatenated at runtime
@@ -592,5 +692,3 @@ static int thread_safe_log_function(const char *message, ...)
 4. **CMake configuration not working**
    - Definitions must be set before `add_subdirectory()`
    - Use `target_compile_definitions()` for target-specific settings
-
-

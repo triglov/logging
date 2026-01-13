@@ -56,6 +56,16 @@ typedef int (*Logging_Function_t)(const char *message, ...);
 void Logging_Init(Logging_Function_t log_func);
 
 /**
+ * @brief Initialize the logging system with a custom logging function used in critical situations
+ * like HardFault handlers when interrupts are disabled.
+ * 
+ * Similar to Logging_Init, but intended for use in contexts
+ * where interrupts may be disabled. Ensures that the logging function is set
+ * safely
+*/
+void Logging_Init_Critical(Logging_Function_t log_func);
+
+/**
  * @brief Get the version of the logging library.
  * 
  * Returns a string containing the current library version in semantic
