@@ -1,6 +1,8 @@
 # Logging lib for embedded systems
 
-Relese 1.2.0
+Release 1.3.0
+
+A lightweight and configurable logging library for embedded systems, designed to facilitate debugging and monitoring of applications with minimal resource overhead.
 
 [Documentation](./logging/doc/logging_doc.md)
 
