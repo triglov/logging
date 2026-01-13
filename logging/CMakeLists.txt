@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25.0)
 
-project(logging VERSION 1.1.0)
+project(logging VERSION 1.2.0)
 
 add_library(${PROJECT_NAME} STATIC)
 
